@@ -8,6 +8,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime
+import zipfile
 import time
 import re
 import csv, json
@@ -17,9 +18,67 @@ import traceback
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
-MAX_SCROLLS = 40
+MAX_SCROLLS = 160
 
 HEADER = ['id_review', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user']
+PROXY_HOST = 'ip'  # rotating proxy or host
+PROXY_PORT = 8000 # port
+PROXY_USER = 'username' # username
+PROXY_PASS = 'password' # password
+
+
+manifest_json = """
+{
+    "version": "1.0.0",
+    "manifest_version": 2,
+    "name": "Chrome Proxy",
+    "permissions": [
+        "proxy",
+        "tabs",
+        "unlimitedStorage",
+        "storage",
+        "<all_urls>",
+        "webRequest",
+        "webRequestBlocking"
+    ],
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "minimum_chrome_version":"22.0.0"
+}
+"""
+
+background_js = """
+var config = {
+        mode: "fixed_servers",
+        rules: {
+        singleProxy: {
+            scheme: "http",
+            host: "%s",
+            port: parseInt(%s)
+        },
+        bypassList: ["localhost"]
+        }
+    };
+
+chrome.proxy.settings.set({value: config, scope: "regular"}, function() {});
+
+function callbackFn(details) {
+    return {
+        authCredentials: {
+            username: "%s",
+            password: "%s"
+        }
+    };
+}
+
+chrome.webRequest.onAuthRequired.addListener(
+            callbackFn,
+            {urls: ["<all_urls>"]},
+            ['blocking']
+);
+""" % (PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS)
+
 
 class GoogleMaps:
 
@@ -84,7 +143,7 @@ class GoogleMaps:
         n_reviews_loaded = len(self.driver.find_elements_by_xpath('//div[@class=\'section-review-content\']'))
         n_scrolls = 0
         while n_reviews_loaded < self.N and n_scrolls < MAX_SCROLLS:
-
+            print(f"Number of reviews so far{n_reviews_loaded} and scrolls are {n_scrolls}")
             # scroll to load more reviews
             scrollable_div = self.driver.find_element_by_css_selector(
                 'div.section-layout.section-scrollbox.scrollable-y.scrollable-show')
@@ -194,13 +253,21 @@ class GoogleMaps:
         return logger
 
 
-    def __get_driver(self, debug=False):
+    def __get_driver(self, debug=True):
         options = Options()
-        if not debug:
-            options.add_argument("--headless")
+
         options.add_argument("--window-size=1366,768")
         options.add_argument("--disable-notifications")
         options.add_argument("--lang=en")
+
+
+        pluginfile = 'proxy_auth_plugin.zip'
+
+        with zipfile.ZipFile(pluginfile, 'w') as zp:
+            zp.writestr("manifest.json", manifest_json)
+            zp.writestr("background.js", background_js)
+        options.add_extension(pluginfile)
+
         input_driver = webdriver.Chrome(chrome_options=options)
 
         return input_driver

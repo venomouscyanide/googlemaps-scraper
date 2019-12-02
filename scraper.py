@@ -13,5 +13,6 @@ if __name__ == '__main__':
 
     with GoogleMaps(args.N) as scraper:
         with open(args.i, 'r') as urls_file:
-            for url in urls_file:
+            urls = urls_file.read().split('|')
+            for url in urls:
                 scraper.get_reviews(url)
