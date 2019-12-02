@@ -21,6 +21,16 @@ Example:
 
   `python scraper.py --N 50`
  
-generates a csv file containing last 50 reviews of places present in _urls.txt_
+generates a csv file containing last 50 reviews of places present in _urls.txt_. 
+
+
+The urls in _urls.txt_ are to be separated by | to consider each URL as separate. The output file will be saved with extension as the index of the URL(1 based indexing).
+
+
+There is an option to add authenticated proxy. To use authenticated proxy. Set the following variables
+1. PROXY_HOST = 'host'  
+2. PROXY_PORT = 8000  
+3. PROXY_USER = 'username' 
+4. PROXY_PASS = 'password'
 
 The _config.json_ file allows to set the directory to store output csv, as well as their filenames.
