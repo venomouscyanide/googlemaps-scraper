@@ -1,8 +1,8 @@
 
-PROXY_HOST = 'zproxy.lum-superproxy.io'  # rotating proxy or host
-PROXY_PORT = 22225  # port
-PROXY_USER = 'lum-customer-clootrack-zone-suyog_india-ip-158.46.135.111'  # username
-PROXY_PASS = '3ouqoo9lsm77'  # password
+PROXY_HOST = ''  # rotating proxy or host
+PROXY_PORT = 8888  # port
+PROXY_USER = ''  # username
+PROXY_PASS = ''  # password
 
 manifest_json = """
 {
