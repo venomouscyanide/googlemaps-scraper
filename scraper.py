@@ -1,6 +1,15 @@
 # -*- coding: utf-8 -*-
+
+"""
+    usage: python3 scraper.py --N 100
+    where N is the number of reviews to be scraped. Scroll limit is by default 160. Scraper stop when scroll limit
+    OR number of reviews is reached.
+
+    Input file is by default urls.txt where the N number of URL's are separated by | (piped)
+    Output files to be written to are configured using config.json
+
+"""
 from googlemaps import GoogleMaps
-from datetime import datetime, timedelta
 import argparse
 
 if __name__ == '__main__':
