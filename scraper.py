@@ -3,7 +3,6 @@ from googlemaps import GoogleMaps
 from datetime import datetime, timedelta
 import argparse
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Google Maps reviews scraper.')
     parser.add_argument('--N', type=int, default=100, help='Number of reviews to scrape')
@@ -14,5 +13,5 @@ if __name__ == '__main__':
     with GoogleMaps(args.N) as scraper:
         with open(args.i, 'r') as urls_file:
             urls = urls_file.read().split('|')
-            for url in urls:
-                scraper.get_reviews(url)
+            for index, url in enumerate(urls, 1):
+                scraper.get_reviews(url, index)

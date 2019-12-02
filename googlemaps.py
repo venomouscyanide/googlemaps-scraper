@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
 from datetime import datetime
 import zipfile
 import time
-import re
 import csv, json
 import logging
 import traceback
@@ -20,12 +17,12 @@ MAX_WAIT = 10
 MAX_RETRY = 10
 MAX_SCROLLS = 160
 
-HEADER = ['id_review', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user']
-PROXY_HOST = 'ip'  # rotating proxy or host
-PROXY_PORT = 8000 # port
-PROXY_USER = 'username' # username
-PROXY_PASS = 'password' # password
-
+HEADER = ['id_review', 'caption', 'timestamp', 'retrieval_date', 'rating', 'username', 'n_review_user', 'n_photo_user',
+          'url_user']
+PROXY_HOST = 'host'  # rotating proxy or host
+PROXY_PORT = 8000  # port
+PROXY_USER = 'username'  # username
+PROXY_PASS = 'password'  # password
 
 manifest_json = """
 {
@@ -83,13 +80,10 @@ chrome.webRequest.onAuthRequired.addListener(
 class GoogleMaps:
 
     def __init__(self, n_max_reviews):
-        config = json.load(open('config.json'))
-        folder = config['folder']
-        self.targetfile = open(folder + config['review-file'], mode='w', encoding='utf-8', newline='\n')
-        self.writer = self.__get_writer(HEADER)
+        self.targetfile = None
+        self.writer = None
 
         self.N = n_max_reviews
-
         self.driver = self.__get_driver()
         self.logger = self.__get_logger()
 
@@ -108,13 +102,15 @@ class GoogleMaps:
 
         return True
 
-    def get_reviews(self, url):
+    def get_reviews(self, url, index):
+        self.writer = self.__get_writer(HEADER, index)
 
         self.driver.get(url)
         wait = WebDriverWait(self.driver, MAX_WAIT)
 
         # order reviews by date
-        menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.goog-inline-block.section-dropdown-menu-button-caption')))
+        menu_bt = wait.until(
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.goog-inline-block.section-dropdown-menu-button-caption')))
 
         # sometimes problem in loading the event on this button
         clicked = False
@@ -138,7 +134,6 @@ class GoogleMaps:
         # failed to change the filter
         if tries == MAX_RETRY:
             return -1
-
 
         n_reviews_loaded = len(self.driver.find_elements_by_xpath('//div[@class=\'section-review-content\']'))
         n_scrolls = 0
@@ -167,7 +162,6 @@ class GoogleMaps:
             n_reviews += self.__parse_reviews(review)
 
         self.logger.info('Scraped %d reviews', n_reviews)
-
 
     def __parse_reviews(self, review):
 
@@ -222,7 +216,6 @@ class GoogleMaps:
 
         return 1
 
-
     # expand review description
     def __expand_reviews(self):
         # use XPath to load complete reviews
@@ -230,7 +223,6 @@ class GoogleMaps:
         for l in links:
             l.click()
         time.sleep(2)
-
 
     def __get_logger(self):
         # create logger
@@ -252,7 +244,6 @@ class GoogleMaps:
 
         return logger
 
-
     def __get_driver(self, debug=True):
         options = Options()
 
@@ -260,7 +251,6 @@ class GoogleMaps:
         options.add_argument("--disable-notifications")
         options.add_argument('--no-sandbox')
         options.add_argument("--lang=en")
-
 
         pluginfile = 'proxy_auth_plugin.zip'
 
@@ -273,15 +263,21 @@ class GoogleMaps:
 
         return input_driver
 
+    def __get_writer(self, header, index):
+        self._initialize_target_file(index)
 
-    def __get_writer(self, header):
         writer = csv.writer(self.targetfile, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(header)
 
         return writer
 
-
     # util function to clean special characters
     def __filter_string(self, str):
         strOut = str.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ')
         return strOut
+
+    def _initialize_target_file(self, index):
+        config = json.load(open('config.json'))
+        folder = config['folder']
+        self.targetfile = open(folder + config['review-file'] + f"_{index}.csv", mode='w', encoding='utf-8',
+                               newline='\n')
