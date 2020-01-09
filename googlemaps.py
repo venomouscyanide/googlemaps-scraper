@@ -17,10 +17,16 @@ from proxy_setup import manifest_json, background_js
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
-MAX_SCROLLS = 160
-
+MAX_TIMES_TO_TRY_LOADING = 20
 HEADER = ['id_review', 'caption', 'timestamp', 'retrieval_date', 'rating', 'username', 'n_review_user', 'n_photo_user',
           'url_user']
+
+
+def _decide_to_continue(stack_for_reviews, number_of_reviews_loaded):
+    for stack_element in stack_for_reviews:
+        if number_of_reviews_loaded != stack_element:
+            return True
+    return False
 
 
 class GoogleMaps:
@@ -56,7 +62,7 @@ class GoogleMaps:
         wait = WebDriverWait(self.driver, MAX_WAIT)
 
         # order reviews by date
-        #menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.goog-inline-block.section-dropdown-menu-button-caption')))
+        # menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.goog-inline-block.section-dropdown-menu-button-caption')))
         menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
 
         # sometimes problem in loading the event on this button
@@ -84,7 +90,10 @@ class GoogleMaps:
 
         n_reviews_loaded = len(self.driver.find_elements_by_xpath('//div[@class=\'section-review-content\']'))
         n_scrolls = 0
-        while n_reviews_loaded < self.N and n_scrolls < MAX_SCROLLS:
+        stack_for_reviews = list()
+
+        while n_reviews_loaded < self.N:
+
             print(f"Number of reviews so far{n_reviews_loaded} and scrolls are {n_scrolls}")
             # scroll to load more reviews
             scrollable_div = self.driver.find_element_by_css_selector(
@@ -99,6 +108,15 @@ class GoogleMaps:
 
             n_reviews_loaded = len(self.driver.find_elements_by_xpath('//div[@class=\'section-review-content\']'))
 
+            if len(stack_for_reviews) < MAX_TIMES_TO_TRY_LOADING:
+                stack_for_reviews.insert(0, n_reviews_loaded)
+            elif len(stack_for_reviews) == MAX_TIMES_TO_TRY_LOADING:
+                if _decide_to_continue(stack_for_reviews, n_reviews_loaded):
+                    stack_for_reviews.pop()
+                    stack_for_reviews.insert(0, n_reviews_loaded)
+                else:
+                    break
+            print(f"stack is {stack_for_reviews}")
             n_scrolls += 1
 
         response = BeautifulSoup(self.driver.page_source, 'html.parser')
