@@ -59,6 +59,10 @@ class GoogleMaps:
 
         self.driver.get(url)
 
+        review_button = self.driver.find_elements_by_xpath(
+            '//button[@class=\'section-tab-bar-tab ripple-container section-tab-bar-tab-unselected\']')[0]
+        review_button.click()
+
         # wait to load review (ajax call)
         time.sleep(5)
 
