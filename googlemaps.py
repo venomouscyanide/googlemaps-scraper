@@ -17,9 +17,8 @@ from proxy_setup import manifest_json, background_js
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
-MAX_TIMES_TO_TRY_LOADING = 20
-HEADER = ['id_review', 'caption', 'timestamp', 'retrieval_date', 'rating', 'username', 'n_review_user', 'n_photo_user',
-          'url_user']
+MAX_TIMES_TO_TRY_LOADING = 15
+HEADER = ['Review', 'relative_date', 'rating', 'date_of_crawl', 'place_reviewed', 'url_user', ]
 
 
 def _decide_to_continue(stack_for_reviews, number_of_reviews_loaded):
@@ -59,31 +58,6 @@ class GoogleMaps:
         self.writer = self.__get_writer(HEADER, index)
 
         self.driver.get(url)
-        wait = WebDriverWait(self.driver, MAX_WAIT)
-
-        # order reviews by date
-        # menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.goog-inline-block.section-dropdown-menu-button-caption')))
-        menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
-
-        # sometimes problem in loading the event on this button
-        clicked = False
-        tries = 0
-        while not clicked and tries < MAX_RETRY:
-            try:
-                menu_bt.click()
-                clicked = True
-                time.sleep(2)
-            except Exception as e:
-                tries += 1
-                self.logger.warn('Failed to click recent button')
-
-            # failed to change the filter
-            if tries == MAX_RETRY:
-                return -1
-
-        # second element of the list: most recent
-        recent_rating_bt = self.driver.find_elements_by_xpath('//div[@role=\'menuitem\']')[1]
-        recent_rating_bt.click()
 
         # wait to load review (ajax call)
         time.sleep(5)
@@ -124,45 +98,25 @@ class GoogleMaps:
 
         n_reviews = 0
         for idx, review in enumerate(reviews):
-            n_reviews += self.__parse_reviews(review)
+            n_reviews += self.__parse_reviews(review, url)
 
         self.logger.info('Scraped %d reviews', n_reviews)
 
-    def __parse_reviews(self, review):
+    def __parse_reviews(self, review, url):
 
-        item = {}
+        item = dict()
 
-        id_review = review.find('button', class_='section-review-action-menu')['data-review-id']
-        username = review.find('div', class_='section-review-title').find('span').text
+        place_reviewed = review.find('div', class_='section-review-title').find('span').text
 
         try:
             review_text = self.__filter_string(review.find('span', class_='section-review-text').text)
         except Exception as e:
-            # print e
             review_text = None
 
         rating = float(review.find('span', class_='section-review-stars')['aria-label'].split(' ')[1])
         relative_date = review.find('span', class_='section-review-publish-date').text
 
-        try:
-            n_reviews_photos = review.find('div', class_='section-review-subtitle').find_all('span')[1].text
-            metadata = n_reviews_photos.split('\xe3\x83\xbb')
-            if len(metadata) == 3:
-                n_photos = int(metadata[2].split(' ')[0].replace('.', ''))
-            else:
-                n_photos = 0
-
-            idx = len(metadata)
-            n_reviews = int(metadata[idx - 1].split(' ')[0].replace('.', ''))
-
-        except Exception as e:
-            n_reviews = 0
-            n_photos = 0
-
-        user_url = review.find('a')['href']
-
-        item['id_review'] = id_review
-        item['caption'] = review_text
+        item['Review'] = review_text
 
         # depends on language, which depends on geolocation defined by Google Maps
         # custom mapping to transform into date shuold be implemented
@@ -170,12 +124,10 @@ class GoogleMaps:
 
         # store datetime of scraping and apply further processing to calculate
         # correct date as retrieval_date - time(relative_date)
-        item['retrieval_date'] = datetime.now()
         item['rating'] = rating
-        item['username'] = username
-        item['n_review_user'] = n_reviews
-        item['n_photo_user'] = n_photos
-        item['url_user'] = user_url
+        item['date_of_crawl'] = datetime.now()
+        item['place_reviewed'] = place_reviewed
+        item['url_user'] = url
 
         self.writer.writerow(list(item.values()))
 
