@@ -23,4 +23,11 @@ if __name__ == '__main__':
         with open(args.i, 'r') as urls_file:
             urls = urls_file.read().split('|')
             for index, url in enumerate(urls, 1):
-                scraper.get_reviews(url, index)
+                number_of_tries = 0
+                while number_of_tries < 10:
+                    try:
+                        scraper.get_reviews(url, index)
+                    except:
+                        number_of_tries += 1
+                        print('Some exception occured. Retrying URL')
+                        continue
