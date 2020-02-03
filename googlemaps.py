@@ -17,7 +17,7 @@ from proxy_setup import manifest_json, background_js
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
-MAX_TIMES_TO_TRY_LOADING = 15
+MAX_TIMES_TO_TRY_LOADING = 5
 HEADER = ['Review', 'relative_date', 'rating', 'date_of_crawl', 'place_reviewed', 'url_user', ]
 
 
