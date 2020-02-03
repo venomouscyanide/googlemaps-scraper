@@ -27,6 +27,7 @@ if __name__ == '__main__':
                 while number_of_tries < 10:
                     try:
                         scraper.get_reviews(url, index)
+                        break
                     except:
                         number_of_tries += 1
                         print('Some exception occured. Retrying URL')

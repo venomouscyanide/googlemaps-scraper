@@ -17,7 +17,7 @@ from proxy_setup import manifest_json, background_js
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
-MAX_TIMES_TO_TRY_LOADING = 5
+MAX_TIMES_TO_TRY_LOADING = 2
 HEADER = ['Review', 'relative_date', 'rating', 'date_of_crawl', 'place_reviewed', 'url_user', ]
 
 
@@ -58,6 +58,8 @@ class GoogleMaps:
         self.writer = self.__get_writer(HEADER, index)
 
         self.driver.get(url)
+
+        time.sleep(5)
 
         review_button = self.driver.find_elements_by_xpath(
             '//button[@class=\'section-tab-bar-tab ripple-container section-tab-bar-tab-unselected\']')[0]
