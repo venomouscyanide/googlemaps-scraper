@@ -217,12 +217,12 @@ class GoogleMaps:
         options.add_argument('--no-sandbox')
         options.add_argument("--lang=en")
 
-        pluginfile = 'proxy_auth_plugin.zip'
+        # pluginfile = 'proxy_auth_plugin.zip'
 
-        with zipfile.ZipFile(pluginfile, 'w') as zp:
-            zp.writestr("manifest.json", manifest_json)
-            zp.writestr("background.js", background_js)
-        options.add_extension(pluginfile)
+        # with zipfile.ZipFile(pluginfile, 'w') as zp:
+        #     zp.writestr("manifest.json", manifest_json)
+        #     zp.writestr("background.js", background_js)
+        # options.add_extension(pluginfile)
 
         input_driver = webdriver.Chrome(chrome_options=options)
 
