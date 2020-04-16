@@ -117,6 +117,7 @@ class GoogleMaps:
         business_info_list = list()
         n_scrolls += 1
         for idx, review in enumerate(reviews):
+            print(f"At index {idx + 1} of {len(reviews)} for fetching business info")
             # Regenerate the DOM after each click
             for current_scroll in range(n_scrolls):
                 print(f"rescrolling {current_scroll + 1} times of {n_scrolls}")
