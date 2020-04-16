@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
+import os
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup
@@ -18,7 +17,28 @@ GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
 MAX_RETRY = 10
 MAX_TIMES_TO_TRY_LOADING = 2
-HEADER = ['Review', 'relative_date', 'rating', 'date_of_crawl', 'place_reviewed', 'url_user', ]
+HEADER = ['Review', 'relative_date', 'rating', 'date_of_crawl', 'place_reviewed', 'url_user', 'business_info']
+
+
+def ensure_directory(file_path):
+    directory = os.path.dirname(file_path)
+    if not directory:
+        # file_path is a file, no need to create directory.
+        return
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+
+def write_csv_to_file_dictwriter(file_name, header, rows, file_open_mode='w', extrasaction="raise"):
+    file_exists = os.path.isfile(file_name)
+    ensure_directory(file_name)
+    with open(file_name, file_open_mode) as outfile:
+        writer = csv.DictWriter(outfile, fieldnames=header, delimiter=',',
+                                quotechar='"', quoting=csv.QUOTE_MINIMAL, extrasaction=extrasaction)
+        if not file_exists or file_open_mode == 'w':
+            writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
 
 
 def _decide_to_continue(stack_for_reviews, number_of_reviews_loaded):
@@ -31,11 +51,7 @@ def _decide_to_continue(stack_for_reviews, number_of_reviews_loaded):
 class GoogleMaps:
 
     def __init__(self, n_max_reviews):
-        self.targetfile = None
-        self.writer = None
-
         self.N = n_max_reviews
-
         self.driver = self.__get_driver()
         self.logger = self.__get_logger()
 
@@ -49,14 +65,9 @@ class GoogleMaps:
         self.logger.info('Closing chromedriver...')
         self.driver.close()
         self.driver.quit()
-
-        self.targetfile.close()
-
         return True
 
     def get_reviews(self, url, index):
-        self.writer = self.__get_writer(HEADER, index)
-
         self.driver.get(url)
 
         time.sleep(5)
@@ -101,11 +112,32 @@ class GoogleMaps:
 
         response = BeautifulSoup(self.driver.page_source, 'html.parser')
         reviews = response.find_all('div', class_='section-review-content')
-
         n_reviews = 0
+        list_of_reviews = list()
+        business_info_list = list()
+        n_scrolls += 1
         for idx, review in enumerate(reviews):
-            n_reviews += self.__parse_reviews(review, url)
+            # Regenerate the DOM after each click
+            for current_scroll in range(n_scrolls):
+                print(f"rescrolling {current_scroll + 1} times of {n_scrolls}")
+                scrollable_div = self.driver.find_element_by_css_selector(
+                    'div.section-layout.section-scrollbox.scrollable-y.scrollable-show')
+                time.sleep(4)
+                self.driver.execute_script('arguments[0].scrollTop = arguments[0].scrollHeight', scrollable_div)
+            review_divs = self._collect_review_divs()[::-1]
+            business_info_list.append(self._get_business_info(review_divs[idx]))
+            list_of_reviews.append(self.__parse_reviews(review, url))
 
+        business_info_list = business_info_list[::-1]
+        for idx, review in enumerate(list_of_reviews):
+            review.update({
+                'business_info': business_info_list[idx]
+            })
+
+        config = json.load(open('config.json'))
+        folder = config['folder']
+        write_csv_to_file_dictwriter(folder + config['review-file'] + f"_{index}.csv", header=HEADER,
+                                     rows=list_of_reviews)
         self.logger.info('Scraped %d reviews', n_reviews)
 
     def __parse_reviews(self, review, url):
@@ -135,9 +167,7 @@ class GoogleMaps:
         item['place_reviewed'] = place_reviewed
         item['url_user'] = url
 
-        self.writer.writerow(list(item.values()))
-
-        return 1
+        return item
 
     # expand review description
     def __expand_reviews(self):
@@ -186,21 +216,21 @@ class GoogleMaps:
 
         return input_driver
 
-    def __get_writer(self, header, index):
-        self._initialize_target_file(index)
-
-        writer = csv.writer(self.targetfile, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(header)
-
-        return writer
-
     # util function to clean special characters
     def __filter_string(self, str):
         strOut = str.replace('\r', ' ').replace('\n', ' ').replace('\t', ' ')
         return strOut
 
-    def _initialize_target_file(self, index):
-        config = json.load(open('config.json'))
-        folder = config['folder']
-        self.targetfile = open(folder + config['review-file'] + f"_{index}.csv", mode='w', encoding='utf-8',
-                               newline='\n')
+    def _collect_review_divs(self):
+        review_divs = list()
+        review_divs.extend(self.driver.find_elements_by_xpath(
+            '//div[@class="section-review ripple-container GLOBAL__gm2-body-2 section-review-clickable section-review-with-padding section-review-side-margin-small"]'))
+        return review_divs
+
+    def _get_business_info(self, review_div):
+        review_div.click()
+        time.sleep(7)
+        business_info = self.driver.find_element_by_xpath('//div[@class="section-place-name-header-subtitle"]').text
+        self.driver.back()
+        time.sleep(7)
+        return business_info
