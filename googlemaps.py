@@ -230,7 +230,10 @@ class GoogleMaps:
     def _get_business_info(self, review_div):
         review_div.click()
         time.sleep(7)
-        business_info = self.driver.find_element_by_xpath('//div[@class="section-place-name-header-subtitle"]').text
+        try:
+            business_info = self.driver.find_element_by_xpath('//div[@class="section-place-name-header-subtitle"]').text
+        except:
+            business_info = "N.A"
         self.driver.back()
         time.sleep(7)
         return business_info
