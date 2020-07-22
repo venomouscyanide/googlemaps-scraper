@@ -12,6 +12,8 @@ import csv, json
 import logging
 import traceback
 
+from webdriver_manager.chrome import ChromeDriverManager
+
 from proxy_setup import manifest_json, background_js
 
 GM_WEBPAGE = 'https://www.google.com/maps/'
@@ -224,8 +226,7 @@ class GoogleMaps:
             zp.writestr("background.js", background_js)
         options.add_extension(pluginfile)
 
-        input_driver = webdriver.Chrome(chrome_options=options)
-
+        input_driver = webdriver.Chrome(ChromeDriverManager().install(), chrome_options=options)
         return input_driver
 
     def __get_writer(self, header, index):
